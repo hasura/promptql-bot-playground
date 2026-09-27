@@ -48,6 +48,7 @@ function setPill(k) {
   state.hf = k; const [cls, text] = PILLS[k] || PILLS.unknown;
   const p = $("#hf-pill"); p.className = "pill " + cls; $("#hf-pill-text").textContent = text;
   $("#setup").classList.toggle("done", k === "connected");
+  $("#hf-refresh-hint").hidden = !["not_connected", "consent", "unknown"].includes(k);
 }
 async function checkHF() {
   setPill("checking");
@@ -123,7 +124,7 @@ async function generate() {
     const job = await api("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video: { sample: state.clip.id }, face1: state.face1, face2: state.face2, consent: true }) });
     state.jobs.unshift(job); renderJobs(); setPill("connected");
-    notice(`Submitted — ${fmtUsd(job.duration)} on your Higgsfield account. It'll appear below when it's done; you can leave this page.`);
+    notice(`Uploading your photos and the clip to Higgsfield (about a minute), then it renders on your account — ${fmtUsd(job.duration)}. Progress is below; you can leave this page.`);
     $("#renders").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     if (e.kind === "not_connected") { setPill("not_connected"); notice("Higgsfield isn't connected to your account yet — follow the three steps at the top, then press Generate again.", true, e.message); $("#setup").scrollIntoView({ behavior: "smooth", block: "start" }); }
@@ -135,11 +136,11 @@ async function generate() {
 /* ---------- renders ---------- */
 async function loadJobs() { try { state.jobs = await api("/api/jobs"); } catch (_) { state.jobs = []; } renderJobs(); }
 async function pollJobs() {
-  const live = state.jobs.filter(j => ["queued", "in_progress", "finalizing"].includes(j.state));
+  const live = state.jobs.filter(j => ["submitting", "queued", "in_progress", "finalizing"].includes(j.state));
   for (const j of live) { try { const u = await api(`/api/jobs/${j.id}`); Object.assign(j, u); } catch (_) {} }
   if (live.length) renderJobs();
 }
-const STAGES = [["queued", "Submitted"], ["in_progress", "Rendering"], ["finalizing", "Finishing audio"], ["done", "Done"]];
+const STAGES = [["submitting", "Uploading"], ["queued", "Submitted"], ["in_progress", "Rendering"], ["finalizing", "Finishing audio"], ["done", "Done"]];
 function renderJobs() {
   const box = $("#jobs"), sec = $("#renders"); sec.hidden = !state.jobs.length; box.innerHTML = "";
   state.jobs.forEach(j => {

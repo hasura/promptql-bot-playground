@@ -2,14 +2,14 @@
 # Install (or refresh) Hotel Lobby Remix as a systemd service on a PromptQL bot VM (v2).
 # Usage, from the VM shell (where PROMPTQL_PLATFORM_API_URL is set):
 #   ./scripts/install.sh [HF_PROVIDER] [HF_PROVIDER_LABEL]
-# Defaults target the Playground Project: higgsfield-user-private / "Higgsfield".
+# Defaults target the Playground Project: higgsfield-user-private / "Higgsfield (user private)".
 set -eu
 cd "$(dirname "$0")/.."
 APP=$(pwd)
 : "${PROMPTQL_PLATFORM_API_URL:?not set — run this from the bot VM shell}"
 PORT="${PORT:-8790}"
 HF_PROVIDER="${1:-${HF_PROVIDER:-higgsfield-user-private}}"
-HF_PROVIDER_LABEL="${2:-${HF_PROVIDER_LABEL:-Higgsfield}}"
+HF_PROVIDER_LABEL="${2:-${HF_PROVIDER_LABEL:-Higgsfield (user private)}}"
 
 for t in python3 ffmpeg ffprobe; do command -v "$t" >/dev/null || { echo "missing dependency: $t (sudo apt-get install -y ffmpeg)"; exit 1; }; done
 [ -s static/samples/hotel-lobby.mp4 ] || { echo "missing static/samples/hotel-lobby.mp4 (it is committed — re-clone?)"; exit 1; }

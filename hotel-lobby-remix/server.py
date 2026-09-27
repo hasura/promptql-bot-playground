@@ -20,7 +20,7 @@ DB = os.path.join(DATA, "app.sqlite")
 PORT = int(os.environ.get("PORT", "8790"))
 PLATFORM = (os.environ.get("PROMPTQL_PLATFORM_API_URL") or "").rstrip("/")
 PROVIDER = os.environ.get("HF_PROVIDER", "higgsfield-user-private")   # integration provider id
-PROVIDER_LABEL = os.environ.get("HF_PROVIDER_LABEL", "Higgsfield")     # its display name in "My Data"
+PROVIDER_LABEL = os.environ.get("HF_PROVIDER_LABEL", "Higgsfield (user private)")   # its display name in "My Data"
 HF_HOST = "api.higgsfield.ai"
 
 # --- The recipe. Fixed on purpose: exactly what produced the original render. --
@@ -83,14 +83,16 @@ def hf_call(token, method, path, body=None, desc="Hotel Lobby Remix"):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={
         "Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json",
-        "User-Agent": "hotel-lobby-remix/1.0", "X-PromptQL-Description": desc})
+        "User-Agent": "hotel-lobby-remix/1.0",
+        # HTTP header values must be latin-1: anything else (e.g. "≈") makes urllib raise before the request leaves.
+        "X-PromptQL-Description": desc.encode("latin-1", "replace").decode("latin-1")})
     try:
         with urllib.request.urlopen(req, timeout=90) as r:
             status, raw = r.status, r.read()
     except urllib.error.HTTPError as e:
         status, raw = e.code, e.read()
     except Exception as e:
-        return 599, {"error": {"message": f"proxy unreachable: {type(e).__name__}"}}
+        return 599, {"error": {"message": f"proxy unreachable: {type(e).__name__}: {str(e)[:200]}"}}
     try:
         j = json.loads(raw or b"null")
     except Exception:
@@ -140,6 +142,48 @@ def stage_to_higgsfield(token, path, mime, what):
 class HFError(Exception):
     def __init__(self, p):
         super().__init__(p["message"]); self.p = p
+
+
+_SAMPLE_URL = {}  # video path -> (ts, public_url): the fixed clip is staged to Higgsfield once and reused (saves ~10 s + 15 MB per render)
+
+def sample_url(token, vpath, vmime):
+    hit = _SAMPLE_URL.get(vpath)
+    if hit and time.time() - hit[0] < 6 * 3600:
+        return hit[1]
+    url = stage_to_higgsfield(token, vpath, vmime, "the source video")
+    _SAMPLE_URL[vpath] = (time.time(), url)
+    return url
+
+def submit_job(jid, token, vpath, vmime, f1, f2, vdur, est):
+    """Background: stage the inputs, then submit the paid render. Staging + submit take 30-90 s through the
+    proxy - longer than the app's request budget - so the job row carries the outcome (polled via /api/jobs/<id>)."""
+    try:
+        video_url = sample_url(token, vpath, vmime)
+        face1_url = stage_to_higgsfield(token, f1["path"], f1["mime"], "face 1 (left)")
+        face2_url = stage_to_higgsfield(token, f2["path"], f2["mime"], "face 2 (right)")
+        st, j = hf_call(token, "POST", MODEL_PATH,
+                        {"video_url": video_url, "image_urls": [face1_url, face2_url], "prompt": PROMPT, "resolution": RESOLUTION},
+                        desc=f"Hotel Lobby Remix: Genjutsu motion transfer, {RESOLUTION}, ~{int(min(vdur,30)+0.999)} s (about ${est:.2f}, billed to your Higgsfield key)")
+        if st not in (200, 201, 202) or not isinstance(j, dict) or not j.get("request_id"):
+            raise HFError(hf_problem(st, j))
+        con = db()
+        con.execute("UPDATE jobs SET request_id=?, state='queued', hf_status=?, last_poll=? WHERE id=?",
+                    (j["request_id"], j.get("status") or "queued", time.time(), jid))
+        con.commit(); con.close()
+    except HFError as e:
+        why = {"not_connected": "Higgsfield isn't connected to your account — connect it in My Data, then try again.",
+               "consent": "This app isn't approved to use your Higgsfield connection — reopen it and accept the permission prompt.",
+               "misconfigured": "The app's Higgsfield integration is misconfigured on the server."
+               }.get(e.p["kind"], "Higgsfield didn't accept the render (no charge).")
+        con = db()
+        con.execute("UPDATE jobs SET state='failed', hf_status='rejected', error=?, finished_at=? WHERE id=?",
+                    (f"{why} {e.p['message']}", now(), jid))
+        con.commit(); con.close()
+    except Exception as e:
+        con = db()
+        con.execute("UPDATE jobs SET state='failed', hf_status='error', error=?, finished_at=? WHERE id=?",
+                    (f"Submitting failed before Higgsfield accepted it (no charge): {type(e).__name__}: {str(e)[:200]}", now(), jid))
+        con.commit(); con.close()
 
 
 # --- media helpers --------------------------------------------------------------
@@ -222,8 +266,13 @@ def refresh_job(job, token):
             con.commit()
             threading.Thread(target=finalize, args=(job["id"], url), daemon=True).start()
         elif hs in ("failed", "nsfw", "cancelled", "canceled"):
-            why = "Higgsfield's content filter rejected this render (no charge)." if hs == "nsfw" else \
-                  f"Higgsfield reported the render as {hs} (no charge). Try again."
+            if hs == "nsfw":
+                why = ("Higgsfield's content filter rejected this render (no charge — flagged generations are refunded automatically). "
+                       "Ensure that you are not using copyright protected images for the faces. "
+                       "The filter can fire on the photos, the prompt, or the combination, and the exact reason isn't exposed; "
+                       "try clear, front-on photos of the two of you.")
+            else:
+                why = j.get("error") or f"Higgsfield reported the render as {hs} (no charge). Try again."
             con.execute("UPDATE jobs SET state='failed', hf_status=?, error=?, finished_at=? WHERE id=?",
                         (hs, why, now(), job["id"]))
         else:
@@ -428,23 +477,22 @@ class H(SimpleHTTPRequestHandler):
         con.close()
         if not f1 or not f2:
             return self._err(400, "Both face photos are required.")
-        try:
-            video_url = stage_to_higgsfield(v["token"], vpath, vmime, "the source video")
-            face1_url = stage_to_higgsfield(v["token"], f1["path"], f1["mime"], "face 1 (left)")
-            face2_url = stage_to_higgsfield(v["token"], f2["path"], f2["mime"], "face 2 (right)")
-            est = price(min(vdur, 30))
-            st, j = hf_call(v["token"], "POST", MODEL_PATH,
-                            {"video_url": video_url, "image_urls": [face1_url, face2_url], "prompt": PROMPT, "resolution": RESOLUTION},
-                            desc=f"Hotel Lobby Remix: Genjutsu motion transfer, {RESOLUTION}, ~{int(min(vdur,30)+0.999)} s (≈${est:.2f}, billed to your Higgsfield key)")
-            if st not in (200, 201, 202) or not isinstance(j, dict) or not j.get("request_id"):
-                raise HFError(hf_problem(st, j))
-        except HFError as e:
-            return self._json(502 if e.p["kind"] != "consent" else 403, {"error": e.p})
+        # Preflight from the status cache only (warmed by the pill on page load; never a proxy round trip here — those take
+        # 8-40 s and would blow the request budget). Keeps the two setup errors synchronous so the UI can point at the fix.
+        hit = _HF_STATUS.get(v["sub"])
+        pre = hit[1] if hit and time.time() - hit[0] < 600 else None
+        if pre in ("not_connected", "consent", "misconfigured"):
+            msg = {"not_connected": "Higgsfield isn't connected to your account yet. Add it in 'My Data', then refresh this app.",
+                   "consent": "This app isn't approved to use your Higgsfield connection yet.",
+                   "misconfigured": "The app's Higgsfield integration is misconfigured on the server."}[pre]
+            return self._json(403 if pre == "consent" else 502, {"error": {"kind": pre, "message": msg}})
+        est = price(min(vdur, 30))
         jid = uuid.uuid4().hex[:12]
         con = db()
         con.execute("INSERT INTO jobs(id,owner,owner_name,created_at,video_label,video_path,duration,est_usd,request_id,state,hf_status,last_poll) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (jid, v["sub"], v["name"], now(), vlabel, vpath, vdur, est, j["request_id"], "queued", j.get("status") or "queued", time.time()))
+                    (jid, v["sub"], v["name"], now(), vlabel, vpath, vdur, est, None, "submitting", "submitting", time.time()))
         con.commit(); job = con.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone(); con.close()
+        threading.Thread(target=submit_job, args=(jid, v["token"], vpath, vmime, dict(f1), dict(f2), vdur, est), daemon=True).start()
         return self._json(201, row(job))
 
 
