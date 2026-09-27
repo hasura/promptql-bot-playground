@@ -150,7 +150,7 @@ function renderJobs() {
     let stages = STAGES.map(([k, label], i) => `<span class="${j.state === "failed" ? "" : i < idx ? "on" : i === idx ? (k === "done" ? "on" : "live") : ""}">${label}</span>`).join("<i>→</i>");
     if (j.state === "failed") stages = `<span class="live" style="border-color:#9c3a1c;color:#9c3a1c">Failed</span>`;
     el.innerHTML = `<div><div class="label">${esc(j.video_label)}</div><div class="line">${when} · ${fmtDur(Math.min(j.duration, 30))} · 720p · ≈ $${Number(j.est_usd).toFixed(2)}</div><div class="stages">${stages}</div></div>
-      <div>${j.output ? `<a class="dl" href="${j.output}" download="hotel-lobby-${j.id}.mp4">DOWNLOAD MP4 ↓</a>` : `<span class="line">${j.state === "failed" ? "" : "about " + Math.max(1, Math.round(Math.min(j.duration, 30) * 0.65)) + " min"}</span>`}</div>
+      <div>${j.output ? "" : `<span class="line">${j.state === "failed" ? "" : "about " + Math.max(1, Math.round(Math.min(j.duration, 30) * 0.65)) + " min"}</span>`}</div>
       ${j.output ? `<video controls playsinline preload="metadata" src="${j.output}"></video>` : ""}
       ${j.state === "failed" && j.error ? `<div class="err">${esc(j.error)}</div>` : ""}`;
     box.appendChild(el);

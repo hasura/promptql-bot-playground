@@ -101,7 +101,7 @@ b{font-weight:600}
 .job .stages span.live{border-color:var(--accent);color:var(--accent)}
 .job .stages i{color:var(--rule-solid);font-style:normal}
 .job video{width:100%;max-width:520px;border-radius:6px;background:#000;display:block;grid-column:1/-1}
-.job .dl{font-family:var(--mono);font-size:11px;color:var(--link);text-decoration:none;letter-spacing:.04em}
+
 .job .err{color:#9c3a1c;font-size:13px;grid-column:1/-1}
 
 /* how it works */
