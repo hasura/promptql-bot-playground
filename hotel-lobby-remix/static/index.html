@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Lobby Remix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <h1>Hotel Lobby, but it's you two.</h1>
+    <p class="lede">Two photos, one button. The same recipe that made the original — nothing to configure.</p>
+    <div class="who" id="who"></div>
+  </div>
+</header>
+
+<!-- ───────────────── Section 1 · Make one ───────────────── -->
+<main class="wrap make" id="make">
+
+  <section class="step setup" id="setup">
+    <div class="setup-card">
+      <div class="setup-head">
+        <div>
+          <div class="eyebrow">BEFORE YOU START</div>
+          <h2>Connect Higgsfield once</h2>
+          <p class="setup-lede">Renders run on your own Higgsfield account, so the app needs your API key — added in PromptQL, never here. It takes about two minutes.</p>
+        </div>
+        <div class="pill" id="hf-pill"><span class="dot"></span><span id="hf-pill-text">Checking…</span></div>
+      </div>
+      <ol class="setup-steps">
+        <li><b>Get a key.</b> Sign in at <a href="https://open.higgsfield.ai/api-keys" target="_blank" rel="noopener">open.higgsfield.ai/api-keys</a>, create an API key and press <i>Copy API Key</i>. (A new Higgsfield account needs credits — a full render is about $17.)</li>
+        <li><b>Add it in PromptQL.</b> Open <b>My Data</b> in PromptQL → <b id="hf-provider-label">Higgsfield</b> → <b>Connect</b> → paste exactly what you copied into the one secure field. Don't split it or add a prefix.</li>
+        <li><b>Come back here.</b> Reopen this app and accept the permission prompt so it can render on your behalf. <a href="#" id="hf-recheck">Check again</a>.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="step" id="step-video">
+    <div class="step-head"><span class="num">1</span><h2>The clip</h2><span class="hint">Fixed. The two performers get replaced; motion, room, camera and music stay.</span></div>
+    <div class="grid samples" id="samples"></div>
+  </section>
+
+  <section class="step faces">
+    <div class="face-col" id="step-face1">
+      <div class="step-head"><span class="num">2</span><h2>Face 1</h2><span class="hint">Replaces the person on the <b>left</b>.</span></div>
+      <label class="drop" id="drop1">
+        <input type="file" accept="image/jpeg,image/png,image/webp" data-slot="face1" hidden>
+        <img alt="" hidden>
+        <div class="drop-text"><span class="cta">Add a photo</span><span class="sub">Front-on · sharp · hair visible</span></div>
+      </label>
+    </div>
+    <div class="face-col" id="step-face2">
+      <div class="step-head"><span class="num">3</span><h2>Face 2</h2><span class="hint">Replaces the person on the <b>right</b>.</span></div>
+      <label class="drop" id="drop2">
+        <input type="file" accept="image/jpeg,image/png,image/webp" data-slot="face2" hidden>
+        <img alt="" hidden>
+        <div class="drop-text"><span class="cta">Add a photo</span><span class="sub">Front-on · sharp · hair visible</span></div>
+      </label>
+    </div>
+  </section>
+
+  <section class="step go" id="step-go">
+    <div class="go-row">
+      <div class="summary" id="summary">
+        <div class="eyebrow">RENDER</div>
+        <div class="summary-line" id="summary-line">Add two faces.</div>
+        <label class="consent"><input type="checkbox" id="consent"> <span>Both people are fine with their face being used in this video.</span></label>
+      </div>
+      <button class="generate" id="generate" disabled>Generate</button>
+    </div>
+    <div class="notice" id="notice" hidden></div>
+  </section>
+
+  <section class="step renders" id="renders" hidden>
+    <div class="step-head"><h2>Your renders</h2><span class="hint">Roughly 13–17 minutes. You can close this and come back.</span></div>
+    <div id="jobs"></div>
+  </section>
+</main>
+
+<!-- ───────────────── Section 2 · How it works ───────────────── -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="eyebrow">HOW IT WORKS</div>
+    <h2 class="serif">One recipe, run exactly as it was the first time.</h2>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="dg-title dg-desc">
+        <title id="dg-title">Hotel Lobby Remix pipeline</title>
+        <desc id="dg-desc">The clip and two photos are uploaded to Higgsfield, rendered by Genjutsu motion transfer, polled until complete, then the original audio is re-muxed and the video handed back.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#eb6c36"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2e5aa8"/></marker>
+        </defs>
+        <rect width="960" height="300" fill="#f5f5f5"/>
+
+        <!-- Boundary: everything inside runs against the visitor's own Higgsfield key -->
+        <rect x="216" y="44" width="560" height="216" rx="8" fill="rgba(235,108,54,0.05)" stroke="rgba(235,108,54,0.5)" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="228" y="62" class="mono eyebrow-svg" fill="rgba(235,108,54,0.85)">HIGGSFIELD · YOUR ACCOUNT</text>
+
+        <!-- Connectors (drawn before nodes) -->
+        <path d="M144 78 H196 Q204 78 204 86 V128 Q204 136 212 136 H232" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+        <line x1="144" y1="152" x2="232" y2="152" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+        <path d="M144 228 H196 Q204 228 204 220 V176 Q204 168 212 168 H232" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+        <line x1="360" y1="152" x2="424" y2="152" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <line x1="584" y1="152" x2="648" y2="152" stroke="#2e5aa8" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow-link)"/>
+        <line x1="760" y1="152" x2="824" y2="152" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+
+        <!-- Inputs -->
+        <g class="node-input">
+          <rect x="32" y="56" width="112" height="44" rx="6" fill="#f5f5f5"/><rect x="32" y="56" width="112" height="44" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399"/>
+          <rect x="40" y="62" width="20" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.5)" stroke-width="0.8"/><text x="50" y="71" class="mono tag">IN</text>
+          <text x="88" y="90" class="name" text-anchor="middle">The clip · 24 s</text>
+          <rect x="32" y="130" width="112" height="44" rx="6" fill="#f5f5f5"/><rect x="32" y="130" width="112" height="44" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399"/>
+          <rect x="40" y="136" width="20" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.5)" stroke-width="0.8"/><text x="50" y="145" class="mono tag">IN</text>
+          <text x="88" y="164" class="name" text-anchor="middle">Face 1 · left</text>
+          <rect x="32" y="206" width="112" height="44" rx="6" fill="#f5f5f5"/><rect x="32" y="206" width="112" height="44" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399"/>
+          <rect x="40" y="212" width="20" height="12" rx="2" fill="transparent" stroke="rgba(122,131,153,0.5)" stroke-width="0.8"/><text x="50" y="221" class="mono tag">IN</text>
+          <text x="88" y="240" class="name" text-anchor="middle">Face 2 · right</text>
+        </g>
+
+        <!-- Upload -->
+        <rect x="232" y="120" width="128" height="64" rx="6" fill="#f5f5f5"/><rect x="232" y="120" width="128" height="64" rx="6" fill="#ffffff" stroke="#2d3142"/>
+        <rect x="240" y="126" width="24" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.4)" stroke-width="0.8"/><text x="252" y="135" class="mono tag">API</text>
+        <text x="296" y="156" class="name" text-anchor="middle">Upload</text>
+        <text x="296" y="172" class="mono sub" text-anchor="middle">3 presigned URLs</text>
+
+        <!-- Genjutsu (focal) -->
+        <rect x="424" y="116" width="160" height="72" rx="6" fill="#f5f5f5"/><rect x="424" y="116" width="160" height="72" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+        <rect x="432" y="122" width="36" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.5)" stroke-width="0.8"/><text x="450" y="131" class="mono tag" fill="#eb6c36">MODEL</text>
+        <text x="504" y="152" class="name" text-anchor="middle">Genjutsu motion transfer</text>
+        <text x="504" y="167" class="mono sub" text-anchor="middle">720p · fixed prompt</text>
+        <text x="504" y="179" class="mono sub" text-anchor="middle">$0.68 / input second</text>
+
+        <!-- Poll -->
+        <rect x="648" y="120" width="112" height="64" rx="6" fill="#f5f5f5"/><rect x="648" y="120" width="112" height="64" rx="6" fill="#ffffff" stroke="#2d3142"/>
+        <rect x="656" y="126" width="24" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.4)" stroke-width="0.8"/><text x="668" y="135" class="mono tag">API</text>
+        <text x="704" y="156" class="name" text-anchor="middle">Poll status</text>
+        <text x="704" y="172" class="mono sub" text-anchor="middle">~15 min</text>
+
+        <!-- Output -->
+        <rect x="824" y="120" width="128" height="64" rx="6" fill="#f5f5f5"/><rect x="824" y="120" width="128" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75"/>
+        <rect x="832" y="126" width="24" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.5)" stroke-width="0.8"/><text x="844" y="135" class="mono tag">OUT</text>
+        <text x="888" y="156" class="name" text-anchor="middle">Your video</text>
+        <text x="888" y="172" class="mono sub" text-anchor="middle">original audio re-muxed</text>
+
+        <text x="32" y="284" class="aside">The only variable is the two faces. Everything else is held constant so the format survives.</text>
+      </svg>
+    </figure>
+
+    <div class="how-cols">
+      <div class="how-col">
+        <div class="eyebrow">THE RECIPE</div>
+        <p>Higgsfield's <b>Genjutsu motion transfer</b>, at <b>720p</b>, with your two photos as Image 1 and Image 2 and this exact prompt:</p>
+        <blockquote class="mono" id="prompt-quote">keep Everything the same in the video just replace the faces with the two people in the 2 images provided.</blockquote>
+        <p>The model keeps the motion, camera and timing and rebuilds the people from your photos. The finished picture gets the clip's original soundtrack laid back under it so the lip and beat sync are exact.</p>
+      </div>
+      <div class="how-col">
+        <div class="eyebrow">WHAT MAKES IT GOOD</div>
+        <p>The photos do almost all the work. Use a <b>front-on, sharp, well-lit</b> shot with a neutral expression and hair visible — a phone selfie in daylight is ideal. Tilted, smiling or low-res cutouts produce weak profiles.</p>
+        <p>The prompt says "replace the faces", so hair from the source performers can carry over. Two renders won't be identical: there's no seed, so a second attempt is a genuine reroll.</p>
+      </div>
+      <div class="how-col">
+        <div class="eyebrow">COST · TIME · CREDIT</div>
+        <p>Renders run on the Higgsfield account you've connected. Billing is <b>per second of input video</b>, rounded up — about $17 for this 24-second clip. A render takes 13–17 minutes. Filtered or failed renders aren't charged.</p>
+        <p>The clip is Quavo &amp; Takeoff's <i>Hotel Lobby</i> from A COLORS SHOW (2022) — their performance, not ours. If you post the result, credit them, and the rights are your call.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap foot">
+  <span class="mono">Your photos and renders are private to you. Nothing is posted anywhere.</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

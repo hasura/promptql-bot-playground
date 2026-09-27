@@ -1,0 +1,14 @@
+[
+  {
+    "id": "hotel-lobby",
+    "title": "Hotel Lobby — the orange room",
+    "tagline": "the original",
+    "credit": "Quavo & Takeoff · A COLORS SHOW, 2022",
+    "license": "third-party footage; posting rights are the poster's call",
+    "file": "/samples/hotel-lobby.mp4",
+    "poster": "/samples/hotel-lobby.jpg",
+    "duration": 24.1,
+    "width": 1920,
+    "height": 1080
+  }
+]

@@ -1,0 +1,15 @@
+# Template — scripts/install.sh fills @APP@ / @USER@ and writes .env (see .env.example).
+[Unit]
+Description=Hotel Lobby Remix
+After=network.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@APP@
+EnvironmentFile=@APP@/.env
+ExecStart=/usr/bin/python3 @APP@/server.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

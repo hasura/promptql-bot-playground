@@ -1,0 +1,5 @@
+data/
+__pycache__/
+*.t.mp4
+static/vendor/
+.env
